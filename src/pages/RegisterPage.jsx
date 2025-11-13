@@ -44,7 +44,7 @@ function RegisterPage({ setIsAuthed }) {
 
             // Change alert to toast later soon
             alert('Registration successful! Going in now')
-            localStorage.setItem(`token`, data.token)
+            localStorage.setItem(`accessToken`, data.accessToken)
             setIsAuthed(true)
             navigate('/notes')
 

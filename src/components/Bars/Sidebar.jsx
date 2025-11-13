@@ -43,8 +43,23 @@ function Sidebar({ isCollapsed, toggleSidebar }) {
 
 
     // logout
-    const handleLogout = () => {
-        localStorage.removeItem('token')
+    const handleLogout = async () => {
+        const refreshToken = localStorage.getItem('refreshToken')
+
+        // calling logout endpoint/route to revoke the refresh token
+        try {
+            await fetch(`${import.meta.VITE_API_URL || 'http://localhost:3000'}/auth/logout`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json'},
+                body: JSON.stringify(refreshToken)
+            })
+        } catch (error) {
+            console.error('Logout errror:', error)
+        }
+
+        // clear tokens then redirect
+        localStorage.removeItem('accessToken')
+        localStorage.removeItem('refreshToken')
         navigate('/login')
         window.location.reload()
     }

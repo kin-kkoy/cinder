@@ -14,36 +14,77 @@ function App() {
 
   // first and foremost check if user already has token
   useEffect(() => {
-    const token = localStorage.getItem('token')
-    if(token) setIsAuthed(true)
+    const accessToken = localStorage.getItem('accessToken')
+    if(accessToken) setIsAuthed(true)
   }, [])
 
   const API = import.meta.env.VITE_API_URL || 'http://localhost:3000' 
 
   // get token and attach to `Authentication` header
   const getAuthHeaders = () => {
-    const token = localStorage.getItem('token')
+    const accessToken = localStorage.getItem('accessToken')
     return{
       'Content-Type': 'application/json',
-      'Authorization': token ? `Bearer ${token}` : ''
+      'Authorization': accessToken ? `Bearer ${accessToken}` : ''
+    }
+  }
+
+  const refreshAuthToken = async () => {
+    try {
+      const res = await fetch(`${API}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include' // auto sends HttpOnly cookie
+      })
+
+      if (!res.ok) throw new Error(`Failed to refresh token`)
+
+      const data = await res.json()
+      localStorage.setItem(`accessToken`, data.accessToken)
+      return data.accessToken
+
+    } catch (refreshTokenError) {
+      // failed to refresh token = logout user
+      localStorage.removeItem(`accessToken`)
+      setIsAuthed(false)
+      throw error
     }
   }
 
   // helper function for AUTHENTICATED FETCH
   const authFetch = async (URL, reqProps = {}) => {
-    const res = await fetch(URL, {
+    let res = await fetch(URL, {
       ...reqProps,
+      credentials: 'include',
       headers: {
         ...getAuthHeaders(),
         ...reqProps.headers
       },
     })
 
-    // this is auto logout if invalid token (logout/expired)
+    // If access token has expired (15mins), try to refresh it
     if(res.status === 401) {
-      localStorage.removeItem(`token`)
-      setIsAuthed(false)
-      throw new Error('Session expired. Please login again.')
+      try {
+        
+        // First, try to refresh/reset access token
+        await refreshAuthToken()
+
+        // If successfully refreshed, then attempt again to call the fetch request
+        res = await fetch(URL, {
+          ...reqProps,
+          credentials: 'include',
+          headers: {
+            ...getAuthHeaders(),
+            ...reqProps.headers
+          },
+        })
+
+      } catch (refreshError) {
+        console.error(`Token refresh failed:`, refreshError)
+        localStorage.removeItem(`accessToken`)
+        setIsAuthed(false)
+        throw new Error('Session expired. Please login again.')
+        
+      }
     }
 
     return res

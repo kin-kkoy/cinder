@@ -27,6 +27,7 @@ function LoginPage({ setIsAuthed }) {
             const res = await fetch(`${API}/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',// THIS ALLOWS US TO SEND/RECIEVE COOKIES
                 body: JSON.stringify({ username, password })
             })
 
@@ -35,7 +36,7 @@ function LoginPage({ setIsAuthed }) {
             if(!res.ok) throw new Error (data.error || 'Login failed')
 
             // if loggin in worked well, store the obtained token
-            localStorage.setItem(`token`, data.token)
+            localStorage.setItem(`accessToken`, data.accessToken)
             setIsAuthed(true)
 
             // then redirect
