@@ -1,10 +1,8 @@
-import { Link, useParams } from "react-router-dom"
+import { Link } from "react-router-dom"
 import styles from './SidebarList.module.css'
 
 
-function SidebarList({ isCollapsed, notes }) {
-    const { id } = useParams()
-    console.log(id)
+function SidebarList({ isCollapsed, notes, currentNoteID }) {
 
     if (isCollapsed) return null; // don't show list if collapsed
 
@@ -19,9 +17,8 @@ function SidebarList({ isCollapsed, notes }) {
                         // if u're wondering why naay key, reason is it's list
                         <Link key={note.id}
                             to={`/notes/${note.id}`}
-                            className={`${styles.noteItem} ${id == note.id ? styles.active : ''}`}
+                            className={`${styles.noteItem} ${currentNoteID == note.id ? styles.active : ''}`}
                         >
-                            <span className={styles.noteIcon}>📄</span>
                             <span className={styles.noteTitle}>{note.title || 'Untitled'}</span>
                         </Link>
                     ))

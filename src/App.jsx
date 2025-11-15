@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Route, Routes, useParams } from 'react-router-dom'
 import Sidebar from "./components/Bars/Sidebar.jsx"
 import NotePage from "./pages/NotePage.jsx"
 import NotesHub from "./pages/NotesHub.jsx"
@@ -14,6 +14,7 @@ function App() {
   const [notes, setNotes] = useState([])
   const [isAuthed, setIsAuthed] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false) // for sidebar's margin. It's setter logic will be done on the sidebar (which is the child)
+  const [currentNoteID, setCurrentNoteID] = useState(null)
 
   // first and foremost check if user already has token
   useEffect(() => {
@@ -167,17 +168,24 @@ function App() {
     }
   }
 
+
+  // Wrapper component to get the ID from route parameters
+  function NotePageWrapper({ notes, editTitle, editBody, onNoteChange}){
+    const { id } = useParams()
+
+    useEffect(() => {
+      onNoteChange(id)
+    }, [id, onNoteChange])
+
+    return <NotePage notes={notes} editTitle={editTitle} editBody={editBody} />
+  }
+
+
   //  Elements area
   const notesHubElement = (
     <NotesHub notes={notes} 
     addNote={handleAddNote}
     deleteNote={handleDeleteNote}/>
-  )
-
-  const notePageElement = (
-    <NotePage notes={notes}
-    editTitle={handleEditTitle}
-    editBody={handleEditBody} />
   )
 
   // temp style so that my eyes won't cry when dev mode
@@ -203,7 +211,13 @@ function App() {
         }}>
 
           {/* Only show sidebar when logged in */}
-          {isAuthed && (<Sidebar isCollapsed={isCollapsed} toggleSidebar={setIsCollapsed} notes={notes}/>)}
+          {isAuthed && (
+            <Sidebar isCollapsed={isCollapsed} 
+              toggleSidebar={setIsCollapsed} 
+              notes={notes} 
+              currentNoteID={currentNoteID} 
+            />
+          )}
 
 
           {/* blank space reserved for fixed sidebar */}
@@ -231,7 +245,14 @@ function App() {
               {isAuthed ? (
                 <>
                   <Route path="/notes" element={notesHubElement} />
-                  <Route path="/notes/:id" element={notePageElement} />
+                  <Route path="/notes/:id" element={
+                    <NotePageWrapper notes={notes} 
+                      editTitle={handleEditTitle}
+                      editBody={handleEditBody}
+                      onNoteChange={setCurrentNoteID}
+                      />
+                    }
+                  />
                   <Route path="/tasks" element={<TasksHub />} />
                   <Route path="/mods" element={<ModsHub />} />
 

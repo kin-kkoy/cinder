@@ -20,7 +20,7 @@ import ProfileDropdown from "../Menus/ProfileDropdown";
 //       settings, profile page, logout
 
 
-function Sidebar({ isCollapsed, toggleSidebar, notes }) {
+function Sidebar({ isCollapsed, toggleSidebar, notes, currentNoteID }) {
 
     // Contents depend on whether on notes/note(specific)/todo/mod page
     //  you will use the concept of *mounting* and `useEffect` 
@@ -105,7 +105,7 @@ function Sidebar({ isCollapsed, toggleSidebar, notes }) {
                 
                 {/* Notes */}
                 {/* Conditional, but just an IF instead of an if-else */}
-                {onNotePage && (<SidebarList isCollapsed={isCollapsed} notes={notes} />)}
+                {onNotePage && (<SidebarList isCollapsed={isCollapsed} notes={notes} currentNoteID={currentNoteID}/>)}
 
                 {/* Tasks (MAYBE ADD OR NOT, DEPENDS) */}
 

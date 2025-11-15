@@ -19,8 +19,6 @@ function NotesHub({ notes, addNote, deleteNote }) {
 
       <div className={styles.header}>
         <h1>NotesHub</h1>
-        <h3>Your notes, userID: {notes[0]?.user_id} | debug purposes</h3>
-        <p>Mode: {viewMode}  |  Debug purposes</p>
       </div>
         
       <div className={styles.controls}>

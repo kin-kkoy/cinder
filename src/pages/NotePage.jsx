@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import styles from './NotePage.module.css'
 
-function NotesPage({ notes, editTitle, editBody }) {
+function NotePage({ notes, editTitle, editBody }) {
   
   const { id } = useParams()
   const navigate = useNavigate()
@@ -23,7 +23,7 @@ function NotesPage({ notes, editTitle, editBody }) {
   }, [note])
 
   // this is for auto-selecting title when first created and visited
-  useEffect(() => {
+  useLayoutEffect(() => {
     if(newTitle === "Untitled" && titleInputReference.current){
       titleInputReference.current.select()
     }
@@ -42,10 +42,22 @@ function NotesPage({ notes, editTitle, editBody }) {
     await editBody(note.id, newBody)
   }
 
+  // for back button
+  const handleGoBackBtn = () =>{
+    navigate('/notes')
+  }
+
   return (
     <div className={styles.container}>
 
-      <button onClick={() => navigate(`/notes`)} className={styles.backBtn}>← Back to Notes</button>
+      <button onClick={handleGoBackBtn} className={styles.backBtn}>← Back to Notes</button>
+
+      {/* Show warning if title is Untitled */}
+      {newTitle === "Untitled" && (
+        <div className={styles.titleWarning}>
+          💡 Tip: Give your note a title to easily find it later
+        </div>
+      )}
 
       <div className={styles.debugSection}>
         <p>---------- Debug Purposes only-----------</p>
@@ -77,4 +89,4 @@ function NotesPage({ notes, editTitle, editBody }) {
   )
 }
 
-export default NotesPage
+export default NotePage
