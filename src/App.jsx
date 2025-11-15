@@ -5,6 +5,9 @@ import NotePage from "./pages/NotePage.jsx"
 import NotesHub from "./pages/NotesHub.jsx"
 import LoginPage from "./pages/LoginPage.jsx"
 import RegisterPage from "./pages/RegisterPage.jsx"
+import TasksHub from "./pages/TasksHub.jsx"
+import ModsHub from "./pages/ModsHub.jsx"
+import SettingsPage from "./pages/SettingsPage.jsx"
 
 function App() {
 
@@ -200,7 +203,7 @@ function App() {
         }}>
 
           {/* Only show sidebar when logged in */}
-          {isAuthed && <Sidebar isCollapsed={isCollapsed} toggleSidebar={setIsCollapsed}/>}
+          {isAuthed && (<Sidebar isCollapsed={isCollapsed} toggleSidebar={setIsCollapsed} notes={notes}/>)}
 
 
           {/* blank space reserved for fixed sidebar */}
@@ -229,6 +232,10 @@ function App() {
                 <>
                   <Route path="/notes" element={notesHubElement} />
                   <Route path="/notes/:id" element={notePageElement} />
+                  <Route path="/tasks" element={<TasksHub />} />
+                  <Route path="/mods" element={<ModsHub />} />
+
+                  <Route path="/settings" element={<SettingsPage />} />
                 </>
               ) : (
                 <Route path="*" element={<LoginPage setIsAuthed={setIsAuthed} />} />

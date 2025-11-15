@@ -30,7 +30,7 @@ function NotesHub({ notes, addNote, deleteNote }) {
                 </p>
             </div>
             <button onClick={changeView} className={styles.toggleBtn}>
-                {viewMode === "list" ? "Grid View" : "List View"}
+                {viewMode === "list" ? "Card View" : "List View"}
             </button>
       </div>
 

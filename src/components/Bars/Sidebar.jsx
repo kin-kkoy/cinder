@@ -1,7 +1,11 @@
 import { useState } from "react"
 import LogoutBtn from "../Buttons/LogoutBtn";
-import { useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import styles from './Sidebar.module.css'
+import NotesHub from "../../pages/NotesHub";
+import TasksHub from "../../pages/TasksHub";
+import SidebarList from "./SidebarList";
+import ProfileDropdown from "../Menus/ProfileDropdown";
 
 
 // CHANGE EVERYTHING THERE!! WHAT SHOULD HAPPEN:
@@ -16,7 +20,7 @@ import styles from './Sidebar.module.css'
 //       settings, profile page, logout
 
 
-function Sidebar({ isCollapsed, toggleSidebar }) {
+function Sidebar({ isCollapsed, toggleSidebar, notes }) {
 
     // Contents depend on whether on notes/note(specific)/todo/mod page
     //  you will use the concept of *mounting* and `useEffect` 
@@ -26,8 +30,9 @@ function Sidebar({ isCollapsed, toggleSidebar }) {
     const [currentState, setCurrentState] = useState('def'); // value: def(default)|notes|note|todo|mod
 
     const navigate = useNavigate()
+    const location = useLocation()
 
-
+    const onNotePage = location.pathname.startsWith('/notes/') && location.pathname !== '/notes';   // ensures that we're on a NOTEPAGE NOT NOTESHUB
 
     // // Don't mind these 2 yet, to be implemented soon since these are just extras
     // // Sort note
@@ -44,14 +49,12 @@ function Sidebar({ isCollapsed, toggleSidebar }) {
 
     // logout
     const handleLogout = async () => {
-        const refreshToken = localStorage.getItem('refreshToken')
-
         // calling logout endpoint/route to revoke the refresh token
         try {
-            await fetch(`${import.meta.VITE_API_URL || 'http://localhost:3000'}/auth/logout`, {
+            await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/auth/logout`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json'},
-                body: JSON.stringify(refreshToken)
+                credentials: 'include'
             })
         } catch (error) {
             console.error('Logout errror:', error)
@@ -59,7 +62,6 @@ function Sidebar({ isCollapsed, toggleSidebar }) {
 
         // clear tokens then redirect
         localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
         navigate('/login')
         window.location.reload()
     }
@@ -68,30 +70,53 @@ function Sidebar({ isCollapsed, toggleSidebar }) {
     return (
         <div className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
 
+            {/* TOP SECTION: toggle and navigation links */}
             <div className={styles.topSection}>
+
+                {/* this is the toggle button */}
                 <button className={styles.toggleBtn} onClick={() => toggleSidebar(!isCollapsed)}>{isCollapsed ? '→' : '☰'}</button>
+
+                {/* Navigation area */}
+                {!isCollapsed && <p className={styles.sectionLabel}>Links</p>}
+                <p>this is a reminder: maybe switch to icons instead of emojis</p>
+                <Link to="/notes"
+                    className={`${styles.menuBtn} ${location.pathname.startsWith('/notes') ? styles.active : ''}`}
+                    title="Notes"> 
+                        <span className={styles.icon}>📝</span>
+                        {!isCollapsed && <span>Notes</span>}
+                </Link>
+                <Link to="/tasks" 
+                    className={`${styles.menuBtn} ${location.pathname === '/tasks' ? styles.active : ''}`} title="Tasks">
+                        <span className={styles.icon}>📋</span>
+                        {!isCollapsed && <span>Tasks</span>}
+                </Link>
+                <Link to="/mods" 
+                    className={`${styles.menuBtn} ${location.pathname === '/mods' ? styles.active : ''}`} 
+                    title="Mods">
+                        <span className={styles.icon}>📦</span>
+                        {!isCollapsed && <span>Mods</span>}
+                </Link>
+
             </div>
 
+
+            {/* MIDDLE SECTION: the list of notes/takss/mods */}
             <div className={styles.menuSection}>
-                {!isCollapsed && (<p className={styles.sectionLabel}>---- Dropdown-like window shows these: ----</p>)}
-                <button className={styles.menuBtn}
-                    onClick={() => alert(`to be implemented`)}
-                    title="Profile"  // Tooltip for collapsed state
-                >
-                    <span className={styles.icon}>👤</span>
-                    {!isCollapsed && <span>Profile</span>}
-                </button>
-                <button className={styles.menuBtn}
-                    onClick={() => alert(`to be implemented`)}
-                    title="Settings"
-                >
-                    <span className={styles.icon}>⚙️</span>
-                    {!isCollapsed && <span>Settings</span>}
-                </button>
+                
+                {/* Notes */}
+                {/* Conditional, but just an IF instead of an if-else */}
+                {onNotePage && (<SidebarList isCollapsed={isCollapsed} notes={notes} />)}
+
+                {/* Tasks (MAYBE ADD OR NOT, DEPENDS) */}
+
+                {/* Mods */}
+                
             </div>
 
+
+            {/* BOTTOM SECTION: user & settings */}
             <div className={styles.bottomSection}>
-                <LogoutBtn handleLogout={handleLogout} isCollapsed={isCollapsed} />
+                <ProfileDropdown isCollapsed={isCollapsed} handleLogout={handleLogout} />
             </div>
 
         </div>
