@@ -1,24 +1,64 @@
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import styles from './Card.module.css'
 
-function HorizontalCard({ note, deleteNote }) {
-  
-  const navigate = useNavigate()
+function HorizontalCard({ note, deleteNote, isSelectionMode, isSelected, onToggleSelect }) {
 
-  return (
+  const handleDelete = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if(window.confirm(`Delete "${note.title}"?`)) deleteNote(note.id)
+  }
 
-    <div onClick={ () => navigate(`/notes/${note.id}`)} className={styles.horizontalCard}>
+  const cardClicked = (e) => {
+    // If in selection mode, toggle selection instead of navigating
+    if (isSelectionMode) {
+      e.preventDefault()
+      onToggleSelect()
+    }
+  }
+
+
+  const cardContent = (
+    <div className={`${styles.horizontalCard} ${isSelected ? styles.selected : ''}`} onClick={cardClicked} >
+
+      {/* checkbox should ONLY APPEAR IN SELECTION MODE */}
+      {isSelectionMode && (
+        <div className={styles.checkbox}>
+          <input type='checkbox'
+            checked={isSelected}
+            onChange={onToggleSelect}
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
 
       <div className={styles.horizontalCardContent}>
         <h4>{note.title}</h4>
-        <p>category here maybe</p>
+        <p className={styles.preview}>
+          {note.body ? note.body.substring(0, 150) + '...' : 'No content yet'}
+        </p>
       </div>
-      <button onClick={(e) => {
-        e.stopPropagation()
-        deleteNote(note.id)
-      }}>Delete</button>
+
+
+      <div className={styles.meta}>        
+        {/* Show delete button only when NOT in selection mode */}
+        {!isSelectionMode && (
+          <button onClick={handleDelete}>
+            🗑️
+          </button>
+        )}
+      </div>
 
     </div>
+  )
+
+
+  return isSelectionMode ? (
+    cardContent
+  ) : (
+    <Link to={`/notes/${note.id}`} style={{textDecoration: 'none'}}>
+      {cardContent}
+    </Link>
   )
 }
 

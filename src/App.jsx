@@ -12,6 +12,7 @@ import SettingsPage from "./pages/SettingsPage.jsx"
 function App() {
 
   const [notes, setNotes] = useState([])
+  const [notebooks, setNotebooks] = useState([])
   const [isAuthed, setIsAuthed] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false) // for sidebar's margin. It's setter logic will be done on the sidebar (which is the child)
   const [currentNoteID, setCurrentNoteID] = useState(null)
@@ -94,8 +95,8 @@ function App() {
     return res
   }
 
-  // Insta GET notes
-  useEffect(() => {
+  // Insta GET notes and notebooks (separated so that if only note || notebook changes it won't run BOTH at the same time)
+  useEffect(() => { // notes
     if(!isAuthed) return // don't fetch if not logged in / invalid session
 
     async function fetchNotes() {
@@ -110,6 +111,24 @@ function App() {
     }
 
     fetchNotes()
+  }, [isAuthed])
+
+  useEffect(() => { // notebooks
+    if(!isAuthed) return
+
+    async function fetchNotebooks() {
+      try {
+        const res = await authFetch(`${API}/notebooks`)
+        if(!res.ok) throw new Error("Failed to fetch notebooks");
+        const data = await res.json()
+        setNotebooks(data)
+      } catch (error) {
+        console.error(`Error in fetching notebooks:`, error)
+      }
+    }
+
+    fetchNotebooks()
+
   }, [isAuthed])
 
   // add
@@ -168,6 +187,55 @@ function App() {
     }
   }
 
+  // create notebook
+  const handleCreateNotebook = async (name, noteIds) => {
+    try {
+      const res = await authFetch(`${API}/notebooks`, {
+        method: "POST",
+        body: JSON.stringify({ name, noteIds })
+      })
+      if(!res.ok) throw new Error("Failed to create ntoebook");
+      
+      const newNotebook = await res.json()
+      setNotebooks(notebooks => [newNotebook, ...notebooks])
+  
+      const notesRes = await authFetch(`${API}/notes`)
+      if(notesRes.ok){
+        const updatedNotes = await notesRes.json()
+        setNotes(updatedNotes)
+      }
+  
+      alert(`Notebook created successfully`)
+      
+    } catch (error) {
+      console.error(`Failed to create notebook:`, error)
+      alert("FAILED to create notebook")
+    }
+  }
+
+  // delete notebook
+  const handleDeleteNotebook = async (id) => {
+    // delete notebook --> update the state by removing said notebook --> update the notes by refreshing the state (calling GET again) so that the notes that were part of the notebook are now `loneNotes`
+    try {
+      const res = await authFetch(`${API}/notebooks/${id}`, { method: "DELETE" })
+      if(!res.ok) throw new Error("Failed to delete notebook");
+
+      // updating notebook state
+      setNotebooks(currentNtbks => currentNtbks.filter(ntbk => ntbk.id !== id))
+      
+      // updating notes state by refreshing (calling GET again)
+      const notesResult = await authFetch(`${API}/notes`)
+      if(notesResult.ok){
+        const updatedNotes = await notesResult.json()
+        setNotes(updatedNotes)
+      }
+      
+    } catch (error) {
+      console.error('Error deleting notebook:', error)
+      alert('Failed to delete notebook')
+    }
+  }
+
 
   // Wrapper component to get the ID from route parameters
   function NotePageWrapper({ notes, editTitle, editBody, onNoteChange}){
@@ -184,8 +252,13 @@ function App() {
   //  Elements area
   const notesHubElement = (
     <NotesHub notes={notes} 
+    notebooks={notebooks}
     addNote={handleAddNote}
-    deleteNote={handleDeleteNote}/>
+    deleteNote={handleDeleteNote}
+    createNotebook={handleCreateNotebook}
+    deleteNotebook={handleDeleteNotebook}
+    authFetch={authFetch}
+    API={API}/>
   )
 
   // temp style so that my eyes won't cry when dev mode
@@ -253,6 +326,8 @@ function App() {
                       />
                     }
                   />
+                  {/* <Route path="/notebooks/:id" element={Notebook} */}
+
                   <Route path="/tasks" element={<TasksHub />} />
                   <Route path="/mods" element={<ModsHub />} />
 

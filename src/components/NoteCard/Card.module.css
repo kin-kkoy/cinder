@@ -168,3 +168,34 @@
   font-size: 24px;
   color: #aaa;
 }
+
+
+/* Selection mode styles */
+.card.selected {
+  border: 2px solid #4a9eff;
+  background-color: #1a2a3a;
+}
+
+.horizontalCard.selected {
+  border-left: 4px solid #4a9eff;
+  background-color: #1a2a3a;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.checkbox input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+/* For horizontal card checkbox */
+.horizontalCard .checkbox {
+  margin-right: 15px;
+  margin-bottom: 0;
+}

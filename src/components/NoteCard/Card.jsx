@@ -1,33 +1,58 @@
-// import thumbnail from '../../assets/unnamed.jpg'
-// import styles from './Card.module.css'
-
-// function Card() {
-//   return (
-//     <div className={styles.card}>
-//         <img className={styles.cardImg} src={thumbnail} alt="Note Thumbnail"></img>
-//         <h2 className={styles.cardTitle}>Note 1</h2>
-//         <p className={styles.cardDesc}>Description goes here</p>
-//     </div>
-//   );
-// }
-
-// export default Card
-
-
 import styles from './Card.module.css'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 
-function Card({ note, deleteNote }) {
-  const navigate = useNavigate()
+function Card({ note, deleteNote, isSelectionMode, isSelected, onToggleSelect }) {
 
-  return (
-    <div onClick={ () => navigate(`/notes/${note.id}`) } className={styles.card}>
-      <h2>{note.title}</h2>
-      <p>placeholder for now, maybe a category here? Just keep this for now.</p>
-      <button onClick={ e => { 
-        e.stopPropagation()
-        deleteNote(note.id) }}>Delete Note</button>
+  const handleDelete = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if(window.confirm(`Delete "${note.title}?`)) deleteNote(note.id)
+  }
+
+  const cardClicked = (e) => {
+    // stop the usual navigation if in selection mode (selecting notes to add to notebook) and instead allow selection
+    if(isSelectionMode){
+      e.preventDefault()
+      onToggleSelect()
+    }
+  }
+
+
+  const cardContent = (
+    <div className={`${styles.card} ${isSelected ? styles.isSelected : ''}`} 
+      onClick={ cardClicked }
+    >
+
+      {isSelectionMode && (
+        <div className={styles.checkbox}>
+          <input type='checkbox'
+            checked={isSelected}
+            onChange={onToggleSelect}
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
+
+      <h2 className={styles.title}>{note.title}</h2>
+      <p className={styles.preview}>{note.body ? note.body.substring(0, 100) + '...' : 'No content yet'}</p>
+
+      <div className={styles.footer}>
+        {!isSelectionMode && (
+          <button onClick={handleDelete}>🗑️ Delete Note</button>
+        )}
+
+
+      </div>
     </div>
+  )
+
+
+  return isSelectionMode ? (
+    cardContent
+  ) : (
+    <Link to={`/notes/${note.id}`} style={{ textDecoration: 'none' }}>
+      {cardContent}
+    </Link>
   )
 }
 
