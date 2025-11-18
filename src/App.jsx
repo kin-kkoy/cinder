@@ -196,14 +196,16 @@ function App() {
       })
       if(!res.ok) throw new Error("Failed to create ntoebook");
       
-      const newNotebook = await res.json()
-      setNotebooks(notebooks => [newNotebook, ...notebooks])
-  
-      const notesRes = await authFetch(`${API}/notes`)
-      if(notesRes.ok){
-        const updatedNotes = await notesRes.json()
-        setNotes(updatedNotes)
-      }
+      const { notebook, updatedNotes } = await res.json()
+
+      // Call set notes immediately to update the current set of notes
+      setNotes( currentNotes => currentNotes.map( note => {
+        const updatedNote = updatedNotes.find( updNote => updNote.id === note.id)
+        return updatedNote || note   // Return & use the updated version if it exits
+      }))
+
+      // add the new notebook (the one destructured) to the current set of notebooks
+      setNotebooks(currNotebooks => [notebook, ...currNotebooks])
   
       alert(`Notebook created successfully`)
       
