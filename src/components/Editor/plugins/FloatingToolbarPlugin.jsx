@@ -14,6 +14,7 @@ import { mergeRegister } from '@lexical/utils';
 import { FaBold, FaItalic, FaStrikethrough, FaLink, FaCode } from 'react-icons/fa';
 
 import styles from './FloatingToolbarPlugin.module.css';
+import LinkPopover from './LinkPopover';
 
 function FloatingToolbar({ editor }) {
   const toolbarRef = useRef(null);
@@ -25,7 +26,13 @@ function FloatingToolbar({ editor }) {
   const [isCode, setIsCode] = useState(false);
   const [isLink, setIsLink] = useState(false);
 
+  // Link popover state
+  const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
+  const [linkPopoverPosition, setLinkPopoverPosition] = useState({ x: 0, y: 0 });
+
   const updateToolbar = useCallback(() => {
+    // Don't hide toolbar if link popover is open
+    if (linkPopoverOpen) return;
 
     const selection = $getSelection();
 
@@ -64,7 +71,7 @@ function FloatingToolbar({ editor }) {
       y: rect.top + window.scrollY - 10,
     });
     setIsVisible(true);
-  }, []);
+  }, [linkPopoverOpen]);
 
   useEffect(() => {
     return mergeRegister(
@@ -116,68 +123,110 @@ function FloatingToolbar({ editor }) {
     editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code');
   };
 
-  const insertLink = (e) => {
-    e.preventDefault();
-    if (isLink) {
-      editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
-    } else {
-      const url = prompt('Enter URL:');
-      if (url) {
-        editor.dispatchCommand(TOGGLE_LINK_COMMAND, url);
-      }
-    }
-  };
+  const insertLink = useCallback(
+    (e) => {
+      e.preventDefault();
 
-  if (!isVisible) return null;
+      if (isLink) {
+        // Remove existing link
+        editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
+        return;
+      }
+
+      // Get selection position for popover
+      const nativeSelection = window.getSelection();
+      if (nativeSelection && nativeSelection.rangeCount > 0) {
+        const range = nativeSelection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+
+        setLinkPopoverPosition({
+          x: rect.left + rect.width / 2,
+          y: rect.bottom + 10,
+        });
+      }
+
+      setLinkPopoverOpen(true);
+    },
+    [isLink, editor]
+  );
+
+  const handleLinkConfirm = useCallback(
+    (url) => {
+      editor.focus();
+      // In floating toolbar, there's always selected text
+      editor.dispatchCommand(TOGGLE_LINK_COMMAND, url);
+    },
+    [editor]
+  );
+
+  const handleLinkPopoverClose = useCallback(() => {
+    setLinkPopoverOpen(false);
+    editor.focus();
+  }, [editor]);
+
+  if (!isVisible && !linkPopoverOpen) return null;
 
   return createPortal(
-    <div
-      ref={toolbarRef}
-      className={styles.floatingToolbar}
-      style={{
-        position: 'absolute',
-        left: `${position.x}px`,
-        top: `${position.y}px`,
-        transform: 'translate(-50%, -100%)',
-      }}
-      data-toolbar
-    >
-      <button
-        onMouseDown={formatBold}
-        className={`${styles.btn} ${isBold ? styles.active : ''}`}
-        title="Bold"
-      >
-        <FaBold />
-      </button>
-      <button
-        onMouseDown={formatItalic}
-        className={`${styles.btn} ${isItalic ? styles.active : ''}`}
-        title="Italic"
-      >
-        <FaItalic />
-      </button>
-      <button
-        onMouseDown={formatStrikethrough}
-        className={`${styles.btn} ${isStrikethrough ? styles.active : ''}`}
-        title="Strikethrough"
-      >
-        <FaStrikethrough />
-      </button>
-      <button
-        onMouseDown={formatCode}
-        className={`${styles.btn} ${isCode ? styles.active : ''}`}
-        title="Inline Code"
-      >
-        <FaCode />
-      </button>
-      <button
-        onMouseDown={insertLink}
-        className={`${styles.btn} ${isLink ? styles.active : ''}`}
-        title="Link"
-      >
-        <FaLink />
-      </button>
-    </div>,
+    <>
+      {isVisible && (
+        <div
+          ref={toolbarRef}
+          className={styles.floatingToolbar}
+          style={{
+            position: 'absolute',
+            left: `${position.x}px`,
+            top: `${position.y}px`,
+            transform: 'translate(-50%, -100%)',
+          }}
+          data-toolbar
+        >
+          <button
+            onMouseDown={formatBold}
+            className={`${styles.btn} ${isBold ? styles.active : ''}`}
+            title="Bold"
+          >
+            <FaBold />
+          </button>
+          <button
+            onMouseDown={formatItalic}
+            className={`${styles.btn} ${isItalic ? styles.active : ''}`}
+            title="Italic"
+          >
+            <FaItalic />
+          </button>
+          <button
+            onMouseDown={formatStrikethrough}
+            className={`${styles.btn} ${isStrikethrough ? styles.active : ''}`}
+            title="Strikethrough"
+          >
+            <FaStrikethrough />
+          </button>
+          <button
+            onMouseDown={formatCode}
+            className={`${styles.btn} ${isCode ? styles.active : ''}`}
+            title="Inline Code"
+          >
+            <FaCode />
+          </button>
+          <button
+            onMouseDown={insertLink}
+            className={`${styles.btn} ${isLink ? styles.active : ''}`}
+            title="Link"
+          >
+            <FaLink />
+          </button>
+        </div>
+      )}
+
+      {/* Link popover */}
+      <LinkPopover
+        isOpen={linkPopoverOpen}
+        onClose={handleLinkPopoverClose}
+        onConfirm={handleLinkConfirm}
+        anchorPosition={linkPopoverPosition}
+        hasSelectedText={true}
+      />
+    </>,
     document.body
   );
 }

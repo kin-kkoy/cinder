@@ -5,6 +5,7 @@ import {
   $getSelection,
   $isRangeSelection,
   $isRootOrShadowRoot,
+  $createTextNode,
   FORMAT_TEXT_COMMAND,
   UNDO_COMMAND,
   REDO_COMMAND,
@@ -31,7 +32,7 @@ import {
 import { $setBlocksType } from '@lexical/selection';
 import { $createCodeNode, $isCodeNode } from '@lexical/code';
 import { $findMatchingParent, $getNearestNodeOfType, mergeRegister } from '@lexical/utils';
-import { TOGGLE_LINK_COMMAND, $isLinkNode } from '@lexical/link';
+import { TOGGLE_LINK_COMMAND, $isLinkNode, $createLinkNode } from '@lexical/link';
 
 import {
   FaBold,
@@ -49,6 +50,7 @@ import {
 import { LuHeading1, LuHeading2, LuHeading3, LuPilcrow } from 'react-icons/lu';
 
 import styles from './ToolbarPlugin.module.css';
+import LinkPopover from './LinkPopover';
 
 function ToolbarPlugin() {
   const [editor] = useLexicalComposerContext();
@@ -65,6 +67,11 @@ function ToolbarPlugin() {
   const [isHovering, setIsHovering] = useState(false);
   const [isDockVisible, setIsDockVisible] = useState(true); // Visible by default
   const [forceHidden, setForceHidden] = useState(false); // For keyboard toggle
+
+  // Link popover state
+  const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
+  const [linkPopoverPosition, setLinkPopoverPosition] = useState({ x: 0, y: 0 });
+  const [hasSelectedText, setHasSelectedText] = useState(false);
 
   const dockRef = useRef(null);
   const triggerRef = useRef(null);
@@ -404,16 +411,58 @@ function ToolbarPlugin() {
     }
   };
 
-  const insertLink = () => {
+  const insertLink = useCallback(() => {
     if (isLink) {
+      // Remove existing link
       editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
-    } else {
-      const url = prompt('Enter URL:');
-      if (url) {
+      return;
+    }
+
+    // Check if there's selected text
+    const nativeSelection = window.getSelection();
+    const selectedText = nativeSelection?.toString().trim() || '';
+    setHasSelectedText(selectedText.length > 0);
+
+    // Get position for popover - position above the dock
+    const dock = dockRef.current;
+    if (dock) {
+      const rect = dock.getBoundingClientRect();
+      setLinkPopoverPosition({
+        x: rect.left + rect.width / 2,
+        y: rect.top - 10, // Position above the dock
+      });
+    }
+
+    setLinkPopoverOpen(true);
+  }, [isLink, editor]);
+
+  const handleLinkConfirm = useCallback(
+    (url, linkText) => {
+      editor.focus();
+
+      if (linkText) {
+        // No text was selected, insert link node with provided text
+        editor.update(() => {
+          const selection = $getSelection();
+          if ($isRangeSelection(selection)) {
+            const linkNode = $createLinkNode(url);
+            const textNode = $createTextNode(linkText);
+            linkNode.append(textNode);
+            selection.insertNodes([linkNode]);
+          }
+        });
+      } else {
+        // Text was selected, apply link to selection
         editor.dispatchCommand(TOGGLE_LINK_COMMAND, url);
       }
-    }
-  };
+    },
+    [editor]
+  );
+
+  const handleLinkPopoverClose = useCallback(() => {
+    setLinkPopoverOpen(false);
+    editor.focus();
+  }, [editor]);
 
   const undo = () => editor.dispatchCommand(UNDO_COMMAND, undefined);
   const redo = () => editor.dispatchCommand(REDO_COMMAND, undefined);
@@ -592,6 +641,15 @@ function ToolbarPlugin() {
           Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> to toggle
         </div>
       </div>
+
+      {/* Link popover */}
+      <LinkPopover
+        isOpen={linkPopoverOpen}
+        onClose={handleLinkPopoverClose}
+        onConfirm={handleLinkConfirm}
+        anchorPosition={linkPopoverPosition}
+        hasSelectedText={hasSelectedText}
+      />
     </>,
     document.body
   );

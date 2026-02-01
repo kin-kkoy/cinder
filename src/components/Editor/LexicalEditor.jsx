@@ -20,6 +20,7 @@ import ToolbarPlugin from './plugins/ToolbarPlugin';
 import FloatingToolbarPlugin from './plugins/FloatingToolbarPlugin';
 import OnBlurPlugin from './plugins/OnBlurPlugin';
 import MarkdownInitPlugin from './plugins/MarkdownInitPlugin';
+import CodeBlockExitPlugin from './plugins/CodeBlockExitPlugin';
 
 // Theme and utils
 import editorTheme from './themes/editorTheme';
@@ -74,6 +75,7 @@ function LexicalEditor({ initialContent, onSave, placeholder = 'Start typing her
 
           {/* Custom plugins */}
           <FloatingToolbarPlugin />
+          <CodeBlockExitPlugin />
           <OnBlurPlugin onBlur={onSave} />
 
           {/* Initialize content from markdown */}

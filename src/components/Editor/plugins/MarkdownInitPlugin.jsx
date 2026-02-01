@@ -6,103 +6,153 @@ import { $createListNode, $createListItemNode } from '@lexical/list';
 import { $createCodeNode } from '@lexical/code';
 import { $createLinkNode } from '@lexical/link';
 
-// Parse inline markdown formatting and create text nodes
-function parseInlineMarkdown(text, paragraph) {
+// Parse text content and extract formats, handling nested formatting
+function parseFormattedText(text) {
+  let content = text;
+  const formats = [];
+
+  // Check and strip outermost formatting layers
+  // Order: strikethrough (outermost) -> bold/italic -> code (innermost)
+
+  // Check for strikethrough ~~...~~
+  let strikeMatch = content.match(/^~~(.+)~~$/);
+  if (strikeMatch) {
+    formats.push('strikethrough');
+    content = strikeMatch[1];
+  }
+
+  // Check for bold+italic ***...***
+  let boldItalicMatch = content.match(/^\*\*\*(.+)\*\*\*$/);
+  if (boldItalicMatch) {
+    formats.push('bold', 'italic');
+    content = boldItalicMatch[1];
+  } else {
+    // Check for bold **...**
+    let boldMatch = content.match(/^\*\*(.+)\*\*$/);
+    if (boldMatch) {
+      formats.push('bold');
+      content = boldMatch[1];
+    }
+
+    // Check for italic *...* (after potentially stripping bold)
+    let italicMatch = content.match(/^\*(.+)\*$/);
+    if (italicMatch) {
+      formats.push('italic');
+      content = italicMatch[1];
+    }
+  }
+
+  // Check for inline code `...`
+  let codeMatch = content.match(/^`(.+)`$/);
+  if (codeMatch) {
+    formats.push('code');
+    content = codeMatch[1];
+  }
+
+  return { content, formats };
+}
+
+// Create a text node with specified formats
+function createFormattedTextNode(content, formats) {
+  const node = $createTextNode(content);
+  for (const format of formats) {
+    node.toggleFormat(format);
+  }
+  return node;
+}
+
+// Tokenize and parse inline markdown
+function parseInlineContent(text, parent) {
   if (!text) return;
 
-  // Regex patterns for inline formatting
-  const patterns = [
-    // Bold + Italic (must come before bold and italic)
-    { regex: /\*\*\*(.+?)\*\*\*/g, formats: ['bold', 'italic'] },
-    // Bold
-    { regex: /\*\*(.+?)\*\*/g, formats: ['bold'] },
-    // Italic
-    { regex: /\*(.+?)\*/g, formats: ['italic'] },
-    // Strikethrough
-    { regex: /~~(.+?)~~/g, formats: ['strikethrough'] },
-    // Inline code
-    { regex: /`(.+?)`/g, formats: ['code'] },
-    // Links [text](url)
-    { regex: /\[(.+?)\]\((.+?)\)/g, isLink: true },
-  ];
+  let pos = 0;
 
-  // Simple approach: find all formatting and apply
-  // For simplicity, just create text with basic parsing
-  let remaining = text;
-  let lastIndex = 0;
-
-  // Check for link pattern first
-  const linkRegex = /\[(.+?)\]\((.+?)\)/g;
-  let linkMatch;
-  const parts = [];
-  let currentIndex = 0;
-
-  while ((linkMatch = linkRegex.exec(text)) !== null) {
-    // Add text before link
-    if (linkMatch.index > currentIndex) {
-      parts.push({ type: 'text', content: text.slice(currentIndex, linkMatch.index) });
+  while (pos < text.length) {
+    // Check for link [text](url)
+    const linkMatch = text.slice(pos).match(/^\[([^\]]+)\]\(([^)]+)\)/);
+    if (linkMatch) {
+      const linkNode = $createLinkNode(linkMatch[2]);
+      // Parse the link text for formatting
+      const { content, formats } = parseFormattedText(linkMatch[1]);
+      linkNode.append(createFormattedTextNode(content, formats));
+      parent.append(linkNode);
+      pos += linkMatch[0].length;
+      continue;
     }
-    // Add link
-    parts.push({ type: 'link', text: linkMatch[1], url: linkMatch[2] });
-    currentIndex = linkMatch.index + linkMatch[0].length;
-  }
 
-  // Add remaining text
-  if (currentIndex < text.length) {
-    parts.push({ type: 'text', content: text.slice(currentIndex) });
-  }
+    // Check for inline code `...`
+    const codeMatch = text.slice(pos).match(/^`([^`]+)`/);
+    if (codeMatch) {
+      parent.append(createFormattedTextNode(codeMatch[1], ['code']));
+      pos += codeMatch[0].length;
+      continue;
+    }
 
-  // If no links found, just use the whole text
-  if (parts.length === 0) {
-    parts.push({ type: 'text', content: text });
-  }
+    // Check for strikethrough with possible nested formatting ~~...~~
+    const strikeMatch = text.slice(pos).match(/^~~(.+?)~~/);
+    if (strikeMatch) {
+      const innerContent = strikeMatch[1];
+      const { content, formats } = parseFormattedText(innerContent);
+      formats.push('strikethrough');
+      parent.append(createFormattedTextNode(content, formats));
+      pos += strikeMatch[0].length;
+      continue;
+    }
 
-  // Process each part
-  for (const part of parts) {
-    if (part.type === 'link') {
-      const linkNode = $createLinkNode(part.url);
-      const linkTextNode = $createTextNode(part.text);
-      linkNode.append(linkTextNode);
-      paragraph.append(linkNode);
-    } else {
-      // Parse formatting in text content
-      let content = part.content;
+    // Check for bold+italic ***...***
+    const boldItalicMatch = text.slice(pos).match(/^\*\*\*(.+?)\*\*\*/);
+    if (boldItalicMatch) {
+      parent.append(createFormattedTextNode(boldItalicMatch[1], ['bold', 'italic']));
+      pos += boldItalicMatch[0].length;
+      continue;
+    }
 
-      // Simple formatting detection (not perfect but covers common cases)
-      const textNode = $createTextNode(content);
-
-      // Check for formatting markers and apply
-      if (/\*\*\*(.+?)\*\*\*/.test(content)) {
-        content = content.replace(/\*\*\*(.+?)\*\*\*/g, '$1');
-        const node = $createTextNode(content);
-        node.toggleFormat('bold');
-        node.toggleFormat('italic');
-        paragraph.append(node);
-      } else if (/\*\*(.+?)\*\*/.test(content)) {
-        content = content.replace(/\*\*(.+?)\*\*/g, '$1');
-        const node = $createTextNode(content);
-        node.toggleFormat('bold');
-        paragraph.append(node);
-      } else if (/\*(.+?)\*/.test(content)) {
-        content = content.replace(/\*(.+?)\*/g, '$1');
-        const node = $createTextNode(content);
-        node.toggleFormat('italic');
-        paragraph.append(node);
-      } else if (/~~(.+?)~~/.test(content)) {
-        content = content.replace(/~~(.+?)~~/g, '$1');
-        const node = $createTextNode(content);
-        node.toggleFormat('strikethrough');
-        paragraph.append(node);
-      } else if (/`(.+?)`/.test(content)) {
-        content = content.replace(/`(.+?)`/g, '$1');
-        const node = $createTextNode(content);
-        node.toggleFormat('code');
-        paragraph.append(node);
+    // Check for bold **...**
+    const boldMatch = text.slice(pos).match(/^\*\*(.+?)\*\*/);
+    if (boldMatch) {
+      const innerContent = boldMatch[1];
+      // Check if inner content has strikethrough
+      const strikeInner = innerContent.match(/^~~(.+)~~$/);
+      if (strikeInner) {
+        parent.append(createFormattedTextNode(strikeInner[1], ['bold', 'strikethrough']));
       } else {
-        paragraph.append($createTextNode(content));
+        parent.append(createFormattedTextNode(innerContent, ['bold']));
       }
+      pos += boldMatch[0].length;
+      continue;
     }
+
+    // Check for italic *...*
+    const italicMatch = text.slice(pos).match(/^\*([^*]+)\*/);
+    if (italicMatch) {
+      const innerContent = italicMatch[1];
+      // Check if inner content has strikethrough
+      const strikeInner = innerContent.match(/^~~(.+)~~$/);
+      if (strikeInner) {
+        parent.append(createFormattedTextNode(strikeInner[1], ['italic', 'strikethrough']));
+      } else {
+        parent.append(createFormattedTextNode(innerContent, ['italic']));
+      }
+      pos += italicMatch[0].length;
+      continue;
+    }
+
+    // No formatting matched - consume plain text until next potential pattern
+    const nextPattern = text.slice(pos + 1).search(/[\[`*~]/);
+    const endPos = nextPattern === -1 ? text.length : pos + 1 + nextPattern;
+    const plainText = text.slice(pos, endPos);
+
+    if (plainText) {
+      parent.append($createTextNode(plainText));
+    }
+    pos = endPos;
   }
+}
+
+// Parse inline markdown formatting and create text nodes
+function parseInlineMarkdown(text, parent) {
+  if (!text) return;
+  parseInlineContent(text, parent);
 }
 
 // Parse a single line and return the appropriate node

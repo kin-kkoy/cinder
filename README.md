@@ -14,7 +14,9 @@
 ---
 
 # To implement
- - Notifications (maybe)
+ - Reading mode of a note; Aside from being able to WRITE a note, you can also READ a note, like in Obsidian but make the reading/writing mode button/toggle much clearer or visible to the user.
+   - Reading mode doesn't allow editing or typing of the contents and texts with link should just one click only (currently in writing mode i still have to right click and then open link in a new tab to see the link) whether left click or scroll wheel button click and will open the link on a new tab instead.
+ - Notifications (maybe) -----------------
  - Settings Page
     - Light/Dark mode
     - Themes
@@ -46,9 +48,10 @@
 ---
 
 # NEED FIX
- - Link, needs changing, should be a small popup window thing like a floating one similar to selecting a text
- - Code block, there should be a way to exit out of it (if the code block is the last line in the editor, currently if the last line of the note is the code block the only way to exit out of the code block (to start another line) is to remove the code block then add another line then on the previous line add the code block and then to exit the said code block just move the cursor to the line below (WHICH IS EXTRA HASSLE))
+ 
 
-# FIXED FOR NOW
+# FIXED BUT NEEDS DOUBLE CHECKING ON A LATER DATE
  - Checklist not working well; renders properly once first pressed but after leaving the note and then visiting back, it is displayed like this " [ ] " or " [x] " instead of the checkbox look in markdown. In other words, render issue
  - The editor doesn't respect the gap. Line 1 then add 2 blank lines then on line 4 add a word or letter, leave the note and come back and then you can see the 2 blank lines (lines 2 and 3) are gone, simply put it kinda removes whitespaces lines.
+ - Code block, there should be a way to exit out of it (if the code block is the last line in the editor, currently if the last line of the note is the code block the only way to exit out of the code block (to start another line) is to remove the code block then add another line then on the previous line add the code block and then to exit the said code block just move the cursor to the line below (WHICH IS EXTRA HASSLE))
+ - Link, needs fixing, inserting a link
