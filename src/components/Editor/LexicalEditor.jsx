@@ -50,8 +50,8 @@ function LexicalEditor({ initialContent, onSave, placeholder = 'Start typing her
 
   return (
     <LexicalComposer initialConfig={initialConfig}>
-      <div className={styles.editorContainer}>
-        {/* Fixed Toolbar at top */}
+      <div className={styles.editorContainer} data-editor-container>
+        {/* Floating toolbar dock (renders via portal) */}
         <ToolbarPlugin />
 
         {/* Editor area */}

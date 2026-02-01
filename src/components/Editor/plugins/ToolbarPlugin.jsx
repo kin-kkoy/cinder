@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
   $getSelection,
@@ -10,6 +11,9 @@ import {
   CAN_UNDO_COMMAND,
   CAN_REDO_COMMAND,
   COMMAND_PRIORITY_CRITICAL,
+  FOCUS_COMMAND,
+  BLUR_COMMAND,
+  COMMAND_PRIORITY_LOW,
 } from 'lexical';
 import {
   INSERT_ORDERED_LIST_COMMAND,
@@ -23,7 +27,6 @@ import {
   $createHeadingNode,
   $createQuoteNode,
   $isHeadingNode,
-  HeadingNode,
 } from '@lexical/rich-text';
 import { $setBlocksType } from '@lexical/selection';
 import { $createCodeNode, $isCodeNode } from '@lexical/code';
@@ -58,21 +61,209 @@ function ToolbarPlugin() {
   const [isLink, setIsLink] = useState(false);
   const [blockType, setBlockType] = useState('paragraph');
 
+  // Dock visibility states
+  const [isHovering, setIsHovering] = useState(false);
+  const [isDockVisible, setIsDockVisible] = useState(true); // Visible by default
+  const [forceHidden, setForceHidden] = useState(false); // For keyboard toggle
+
+  const dockRef = useRef(null);
+  const triggerRef = useRef(null);
+  const hideTimeoutRef = useRef(null);
+
+  // Position and layout state for centering on editor
+  const [dockLayout, setDockLayout] = useState({
+    left: '50%',
+    triggerLeft: '50%',
+    maxWidth: 'none',
+    minLeft: 0,
+  });
+
+  // Determine if dock should be shown
+  const shouldShowDock = !forceHidden && (isDockVisible || isHovering);
+
+  // Calculate dock position based on editor container and sidebar
+  const updateDockLayout = useCallback(() => {
+    const editorContainer = document.querySelector('[data-editor-container]');
+    if (!editorContainer) return;
+
+    const rect = editorContainer.getBoundingClientRect();
+    const editorLeft = rect.left;
+    const editorWidth = rect.width;
+    const editorRight = rect.right;
+    const centerX = editorLeft + editorWidth / 2;
+
+    // Constrain max width to editor width minus padding (32px each side)
+    const maxWidth = Math.max(200, editorWidth - 64);
+
+    setDockLayout({
+      left: `${centerX}px`,
+      triggerLeft: `${centerX}px`,
+      maxWidth: `${maxWidth}px`,
+      minLeft: editorLeft,
+      editorRight: editorRight,
+    });
+  }, []);
+
+  // Update layout on mount, resize, scroll, and sidebar changes
+  useEffect(() => {
+    updateDockLayout();
+
+    // Throttled update using requestAnimationFrame for smooth animations
+    let rafId = null;
+    const throttledUpdate = () => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        updateDockLayout();
+        rafId = null;
+      });
+    };
+
+    window.addEventListener('resize', throttledUpdate);
+    window.addEventListener('scroll', throttledUpdate, true);
+
+    // Use ResizeObserver for editor container size changes
+    const editorContainer = document.querySelector('[data-editor-container]');
+    let resizeObserver;
+    if (editorContainer && typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(throttledUpdate);
+      resizeObserver.observe(editorContainer);
+    }
+
+    // Use MutationObserver to detect sidebar collapse/expand (class changes)
+    // We continuously update during sidebar transition for smooth movement
+    const sidebar = document.querySelector('[class*="sidebar"]');
+    let mutationObserver;
+    let animationInterval = null;
+
+    if (sidebar && typeof MutationObserver !== 'undefined') {
+      mutationObserver = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+            // Start continuous updates during the transition (0.3s = 300ms)
+            // Update every frame for smooth movement
+            if (animationInterval) clearInterval(animationInterval);
+
+            const startTime = performance.now();
+            const duration = 350; // slightly longer than sidebar transition
+
+            const animate = () => {
+              const elapsed = performance.now() - startTime;
+              updateDockLayout();
+
+              if (elapsed < duration) {
+                requestAnimationFrame(animate);
+              }
+            };
+
+            requestAnimationFrame(animate);
+          }
+        }
+      });
+      mutationObserver.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
+    }
+
+    return () => {
+      window.removeEventListener('resize', throttledUpdate);
+      window.removeEventListener('scroll', throttledUpdate, true);
+      resizeObserver?.disconnect();
+      mutationObserver?.disconnect();
+      if (rafId) cancelAnimationFrame(rafId);
+      if (animationInterval) clearInterval(animationInterval);
+    };
+  }, [updateDockLayout]);
+
+  // Handle editor focus/blur
+  useEffect(() => {
+    return mergeRegister(
+      editor.registerCommand(
+        FOCUS_COMMAND,
+        () => {
+          setIsDockVisible(false); // Hide when editor gains focus
+          return false;
+        },
+        COMMAND_PRIORITY_LOW
+      ),
+      editor.registerCommand(
+        BLUR_COMMAND,
+        () => {
+          // Small delay to check if focus moved to dock
+          setTimeout(() => {
+            const activeElement = document.activeElement;
+            const isDockFocused = dockRef.current?.contains(activeElement);
+            if (!isDockFocused) {
+              setIsDockVisible(true); // Show when editor loses focus
+            }
+          }, 10);
+          return false;
+        },
+        COMMAND_PRIORITY_LOW
+      )
+    );
+  }, [editor]);
+
+  // Handle mouse entering trigger zone
+  const handleTriggerMouseEnter = useCallback(() => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+    setIsHovering(true);
+  }, []);
+
+  // Handle mouse leaving trigger zone or dock
+  const handleMouseLeave = useCallback(() => {
+    // Small delay to prevent flicker when moving between trigger and dock
+    hideTimeoutRef.current = setTimeout(() => {
+      setIsHovering(false);
+    }, 150);
+  }, []);
+
+  // Handle mouse entering dock (to prevent hide when moving from trigger to dock)
+  const handleDockMouseEnter = useCallback(() => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+    setIsHovering(true);
+  }, []);
+
+  // Keyboard shortcut to toggle dock (Ctrl+Shift+T)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'T') {
+        e.preventDefault();
+        setForceHidden((prev) => !prev);
+        if (forceHidden) {
+          setIsDockVisible(true);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [forceHidden]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const updateToolbar = useCallback(() => {
     const selection = $getSelection();
     if ($isRangeSelection(selection)) {
-      // Text format states
       setIsBold(selection.hasFormat('bold'));
       setIsItalic(selection.hasFormat('italic'));
       setIsStrikethrough(selection.hasFormat('strikethrough'));
       setIsCode(selection.hasFormat('code'));
 
-      // Check for link
       const node = selection.anchor.getNode();
       const parent = node.getParent();
       setIsLink($isLinkNode(parent) || $isLinkNode(node));
 
-      // Block type detection
       const anchorNode = selection.anchor.getNode();
       let element =
         anchorNode.getKey() === 'root'
@@ -142,9 +333,8 @@ function ToolbarPlugin() {
       const selection = $getSelection();
       if ($isRangeSelection(selection)) {
         if (blockType === headingTag) {
-          // Toggle off - convert back to paragraph
           $setBlocksType(selection, () => {
-            const { ParagraphNode, $createParagraphNode } = require('lexical');
+            const { $createParagraphNode } = require('lexical');
             return $createParagraphNode();
           });
         } else {
@@ -228,137 +418,182 @@ function ToolbarPlugin() {
   const undo = () => editor.dispatchCommand(UNDO_COMMAND, undefined);
   const redo = () => editor.dispatchCommand(REDO_COMMAND, undefined);
 
-  return (
-    <div className={styles.toolbar} data-toolbar>
-      {/* Undo/Redo */}
-      <button
-        onClick={undo}
-        disabled={!canUndo}
-        className={styles.toolbarBtn}
-        title="Undo (Ctrl+Z)"
-      >
-        <FaUndo />
-      </button>
-      <button
-        onClick={redo}
-        disabled={!canRedo}
-        className={styles.toolbarBtn}
-        title="Redo (Ctrl+Y)"
-      >
-        <FaRedo />
-      </button>
+  return createPortal(
+    <>
+      {/* Invisible trigger zone at bottom of viewport, centered on editor */}
+      <div
+        ref={triggerRef}
+        className={styles.triggerZone}
+        style={{ left: dockLayout.triggerLeft, maxWidth: dockLayout.maxWidth }}
+        onMouseEnter={handleTriggerMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        aria-hidden="true"
+      />
 
-      <div className={styles.divider} />
+      {/* Floating dock, centered on editor */}
+      <div
+        ref={dockRef}
+        className={`${styles.dock} ${shouldShowDock ? styles.visible : styles.hidden}`}
+        style={{ left: dockLayout.left, maxWidth: dockLayout.maxWidth }}
+        onMouseEnter={handleDockMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        data-toolbar
+        role="toolbar"
+        aria-label="Text formatting toolbar"
+      >
+        <div className={styles.dockContent}>
+          {/* Undo/Redo */}
+          <button
+            onClick={undo}
+            disabled={!canUndo}
+            className={styles.toolbarBtn}
+            title="Undo (Ctrl+Z)"
+            tabIndex={shouldShowDock ? 0 : -1}
+          >
+            <FaUndo />
+          </button>
+          <button
+            onClick={redo}
+            disabled={!canRedo}
+            className={styles.toolbarBtn}
+            title="Redo (Ctrl+Y)"
+            tabIndex={shouldShowDock ? 0 : -1}
+          >
+            <FaRedo />
+          </button>
 
-      {/* Text formatting */}
-      <button
-        onClick={formatBold}
-        className={`${styles.toolbarBtn} ${isBold ? styles.active : ''}`}
-        title="Bold (Ctrl+B)"
-      >
-        <FaBold />
-      </button>
-      <button
-        onClick={formatItalic}
-        className={`${styles.toolbarBtn} ${isItalic ? styles.active : ''}`}
-        title="Italic (Ctrl+I)"
-      >
-        <FaItalic />
-      </button>
-      <button
-        onClick={formatStrikethrough}
-        className={`${styles.toolbarBtn} ${isStrikethrough ? styles.active : ''}`}
-        title="Strikethrough"
-      >
-        <FaStrikethrough />
-      </button>
+          <div className={styles.divider} />
 
-      <div className={styles.divider} />
+          {/* Text formatting */}
+          <button
+            onClick={formatBold}
+            className={`${styles.toolbarBtn} ${isBold ? styles.active : ''}`}
+            title="Bold (Ctrl+B)"
+            tabIndex={shouldShowDock ? 0 : -1}
+          >
+            <FaBold />
+          </button>
+          <button
+            onClick={formatItalic}
+            className={`${styles.toolbarBtn} ${isItalic ? styles.active : ''}`}
+            title="Italic (Ctrl+I)"
+            tabIndex={shouldShowDock ? 0 : -1}
+          >
+            <FaItalic />
+          </button>
+          <button
+            onClick={formatStrikethrough}
+            className={`${styles.toolbarBtn} ${isStrikethrough ? styles.active : ''}`}
+            title="Strikethrough"
+            tabIndex={shouldShowDock ? 0 : -1}
+          >
+            <FaStrikethrough />
+          </button>
 
-      {/* Block types */}
-      <button
-        onClick={formatParagraph}
-        className={`${styles.toolbarBtn} ${blockType === 'paragraph' ? styles.active : ''}`}
-        title="Paragraph"
-      >
-        <LuPilcrow />
-      </button>
-      <button
-        onClick={() => formatHeading('h1')}
-        className={`${styles.toolbarBtn} ${blockType === 'h1' ? styles.active : ''}`}
-        title="Heading 1"
-      >
-        <LuHeading1 />
-      </button>
-      <button
-        onClick={() => formatHeading('h2')}
-        className={`${styles.toolbarBtn} ${blockType === 'h2' ? styles.active : ''}`}
-        title="Heading 2"
-      >
-        <LuHeading2 />
-      </button>
-      <button
-        onClick={() => formatHeading('h3')}
-        className={`${styles.toolbarBtn} ${blockType === 'h3' ? styles.active : ''}`}
-        title="Heading 3"
-      >
-        <LuHeading3 />
-      </button>
+          <div className={styles.divider} />
 
-      <div className={styles.divider} />
+          {/* Block types */}
+          <button
+            onClick={formatParagraph}
+            className={`${styles.toolbarBtn} ${blockType === 'paragraph' ? styles.active : ''}`}
+            title="Paragraph"
+            tabIndex={shouldShowDock ? 0 : -1}
+          >
+            <LuPilcrow />
+          </button>
+          <button
+            onClick={() => formatHeading('h1')}
+            className={`${styles.toolbarBtn} ${blockType === 'h1' ? styles.active : ''}`}
+            title="Heading 1"
+            tabIndex={shouldShowDock ? 0 : -1}
+          >
+            <LuHeading1 />
+          </button>
+          <button
+            onClick={() => formatHeading('h2')}
+            className={`${styles.toolbarBtn} ${blockType === 'h2' ? styles.active : ''}`}
+            title="Heading 2"
+            tabIndex={shouldShowDock ? 0 : -1}
+          >
+            <LuHeading2 />
+          </button>
+          <button
+            onClick={() => formatHeading('h3')}
+            className={`${styles.toolbarBtn} ${blockType === 'h3' ? styles.active : ''}`}
+            title="Heading 3"
+            tabIndex={shouldShowDock ? 0 : -1}
+          >
+            <LuHeading3 />
+          </button>
 
-      {/* Lists */}
-      <button
-        onClick={() => formatList('ul')}
-        className={`${styles.toolbarBtn} ${blockType === 'ul' ? styles.active : ''}`}
-        title="Bullet List"
-      >
-        <FaListUl />
-      </button>
-      <button
-        onClick={() => formatList('ol')}
-        className={`${styles.toolbarBtn} ${blockType === 'ol' ? styles.active : ''}`}
-        title="Numbered List"
-      >
-        <FaListOl />
-      </button>
-      <button
-        onClick={() => formatList('check')}
-        className={`${styles.toolbarBtn} ${blockType === 'check' ? styles.active : ''}`}
-        title="Checklist"
-      >
-        <FaCheckSquare />
-      </button>
+          <div className={styles.divider} />
 
-      <div className={styles.divider} />
+          {/* Lists */}
+          <button
+            onClick={() => formatList('ul')}
+            className={`${styles.toolbarBtn} ${blockType === 'ul' ? styles.active : ''}`}
+            title="Bullet List"
+            tabIndex={shouldShowDock ? 0 : -1}
+          >
+            <FaListUl />
+          </button>
+          <button
+            onClick={() => formatList('ol')}
+            className={`${styles.toolbarBtn} ${blockType === 'ol' ? styles.active : ''}`}
+            title="Numbered List"
+            tabIndex={shouldShowDock ? 0 : -1}
+          >
+            <FaListOl />
+          </button>
+          <button
+            onClick={() => formatList('check')}
+            className={`${styles.toolbarBtn} ${blockType === 'check' ? styles.active : ''}`}
+            title="Checklist"
+            tabIndex={shouldShowDock ? 0 : -1}
+          >
+            <FaCheckSquare />
+          </button>
 
-      {/* Quote and Code */}
-      <button
-        onClick={formatQuote}
-        className={`${styles.toolbarBtn} ${blockType === 'quote' ? styles.active : ''}`}
-        title="Quote"
-      >
-        <FaQuoteRight />
-      </button>
-      <button
-        onClick={formatCodeBlock}
-        className={`${styles.toolbarBtn} ${blockType === 'code' ? styles.active : ''}`}
-        title="Code Block"
-      >
-        <FaCode />
-      </button>
+          <div className={styles.divider} />
 
-      <div className={styles.divider} />
+          {/* Quote and Code */}
+          <button
+            onClick={formatQuote}
+            className={`${styles.toolbarBtn} ${blockType === 'quote' ? styles.active : ''}`}
+            title="Quote"
+            tabIndex={shouldShowDock ? 0 : -1}
+          >
+            <FaQuoteRight />
+          </button>
+          <button
+            onClick={formatCodeBlock}
+            className={`${styles.toolbarBtn} ${blockType === 'code' ? styles.active : ''}`}
+            title="Code Block"
+            tabIndex={shouldShowDock ? 0 : -1}
+          >
+            <FaCode />
+          </button>
 
-      {/* Link */}
-      <button
-        onClick={insertLink}
-        className={`${styles.toolbarBtn} ${isLink ? styles.active : ''}`}
-        title="Insert Link"
-      >
-        <FaLink />
-      </button>
-    </div>
+          <div className={styles.divider} />
+
+          {/* Link */}
+          <button
+            onClick={insertLink}
+            className={`${styles.toolbarBtn} ${isLink ? styles.active : ''}`}
+            title="Insert Link"
+            tabIndex={shouldShowDock ? 0 : -1}
+          >
+            <FaLink />
+          </button>
+        </div>
+
+        {/* Keyboard shortcut hint */}
+        <div className={styles.hint}>
+          Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> to toggle
+        </div>
+      </div>
+    </>,
+    document.body
   );
 }
 

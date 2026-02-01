@@ -26,6 +26,7 @@ function FloatingToolbar({ editor }) {
   const [isLink, setIsLink] = useState(false);
 
   const updateToolbar = useCallback(() => {
+
     const selection = $getSelection();
 
     if (!$isRangeSelection(selection) || selection.isCollapsed()) {
