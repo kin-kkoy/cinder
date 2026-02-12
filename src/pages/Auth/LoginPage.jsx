@@ -60,7 +60,7 @@ function LoginPage({ setIsAuthed, setAppUsername }) {
             <div className={styles.authCard}>
 
                 <div className={styles.authHeader}>
-                    <h1 className={styles.authTitle}>Welcome to Cinder</h1>
+                    <h1 className={styles.authTitle}>Sign In</h1>
                 </div>
 
 
