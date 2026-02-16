@@ -185,47 +185,68 @@ function parseLine(line) {
   return paragraph;
 }
 
-// Parse list items (handles nested lists and different types)
-function parseListBlock(lines, startIndex) {
-  const firstLine = lines[startIndex];
+// Parse list items (handles nested lists via indentation)
+function parseListBlock(lines, startIndex, baseIndent = 0) {
+  const firstContent = lines[startIndex].slice(baseIndent);
 
-  // Determine list type
+  // Determine list type from the first line at this indent level
   let listType = 'bullet';
-  if (/^\d+\.\s/.test(firstLine)) {
+  if (/^\d+\.\s/.test(firstContent)) {
     listType = 'number';
-  } else if (/^-\s\[[ x]\]\s/.test(firstLine)) {
+  } else if (/^-\s\[[ x]\]\s/.test(firstContent)) {
     listType = 'check';
   }
 
   const list = $createListNode(listType);
   let i = startIndex;
+  let lastItem = null;
 
   while (i < lines.length) {
     const line = lines[i];
 
-    // Check if still a list item
-    const bulletMatch = line.match(/^-\s(.*)$/);
-    const numberedMatch = line.match(/^\d+\.\s(.*)$/);
-    const checkMatch = line.match(/^-\s\[([ x])\]\s(.*)$/);
+    // Empty line ends the list
+    if (line.trim() === '') break;
+
+    const indent = line.search(/\S/);
+
+    // Less indented than our level — belongs to a parent list
+    if (indent < baseIndent) break;
+
+    // More indented — nested list, attach to the previous item
+    if (indent > baseIndent) {
+      if (lastItem) {
+        const { node: nestedList, endIndex } = parseListBlock(lines, i, indent);
+        lastItem.append(nestedList);
+        i = endIndex;
+      } else {
+        break;
+      }
+      continue;
+    }
+
+    // Same indent — parse as an item at this level
+    const content = line.slice(baseIndent);
+    const checkMatch = content.match(/^-\s\[([ x])\]\s(.*)$/);
+    const bulletMatch = content.match(/^-\s(.*)$/);
+    const numberedMatch = content.match(/^\d+\.\s(.*)$/);
 
     if (checkMatch && listType === 'check') {
-      const item = $createListItemNode();
-      item.setChecked(checkMatch[1] === 'x');
-      parseInlineMarkdown(checkMatch[2], item);
-      list.append(item);
+      lastItem = $createListItemNode();
+      lastItem.setChecked(checkMatch[1] === 'x');
+      parseInlineMarkdown(checkMatch[2], lastItem);
+      list.append(lastItem);
       i++;
     } else if (bulletMatch && listType === 'bullet') {
-      const item = $createListItemNode();
-      parseInlineMarkdown(bulletMatch[1], item);
-      list.append(item);
+      lastItem = $createListItemNode();
+      parseInlineMarkdown(bulletMatch[1], lastItem);
+      list.append(lastItem);
       i++;
     } else if (numberedMatch && listType === 'number') {
-      const item = $createListItemNode();
-      parseInlineMarkdown(numberedMatch[1], item);
-      list.append(item);
+      lastItem = $createListItemNode();
+      parseInlineMarkdown(numberedMatch[1], lastItem);
+      list.append(lastItem);
       i++;
     } else {
-      // End of list
       break;
     }
   }

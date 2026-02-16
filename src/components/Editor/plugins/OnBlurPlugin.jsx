@@ -54,7 +54,7 @@ function childrenToMarkdown(node) {
 }
 
 // Convert a single block node to markdown
-function blockToMarkdown(node, listType = null, listDepth = 0) {
+function blockToMarkdown(node, listType = null, listDepth = 0, listIndex = 1) {
   const indent = '  '.repeat(listDepth);
 
   if ($isParagraphNode(node)) {
@@ -83,7 +83,7 @@ function blockToMarkdown(node, listType = null, listDepth = 0) {
 
     let prefix = indent;
     if (listType === 'number') {
-      prefix += '1. ';
+      prefix += `${listIndex}. `;
     } else if (listType === 'check') {
       const checked = node.getChecked?.() ? 'x' : ' ';
       prefix += `- [${checked}] `;
@@ -132,11 +132,13 @@ function listToMarkdown(node, depth = 0) {
   const listType = node.getListType();
   const items = node.getChildren();
   const lines = [];
+  let index = 1;
 
   for (const item of items) {
     if ($isListItemNode(item)) {
-      const line = blockToMarkdown(item, listType, depth);
+      const line = blockToMarkdown(item, listType, depth, index);
       lines.push(line);
+      index++;
     }
   }
 
