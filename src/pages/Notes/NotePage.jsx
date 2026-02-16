@@ -24,6 +24,7 @@ function NotePage({ notes, editTitle, editBody, updateTags, toggleFavorite, upda
   const viewMode = searchParams.get('view') === 'read' // for view mode, true = read, false = write
   const menuRef = useRef(null)
   const buttonRef = useRef(null)
+  const isDirtyRef = useRef(false)
 
   // re-renders if note changes (parent changes)
   useEffect(() => {
@@ -57,11 +58,45 @@ function NotePage({ notes, editTitle, editBody, updateTags, toggleFavorite, upda
     }
   }, [newTitle, id])
 
+  // Warn user before closing tab with unsaved changes
+  useEffect(() => {
+    const handler = (e) => {
+      if (isDirtyRef.current) {
+        e.preventDefault()
+      }
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [])
+
+  const handleDirtyChange = useCallback((dirty) => {
+    isDirtyRef.current = dirty
+  }, [])
+
   // Save handler for Lexical editor - receives markdown content
-  const handleEditorSave = useCallback((markdownContent) => {
-    if (!note) return
-    editBody(note.id, markdownContent)
+  const handleEditorSave = useCallback(async (markdownContent) => {
+    if (!note) return false
+    return await editBody(note.id, markdownContent)
   }, [note?.id, editBody])
+
+  // Draft recovery: check if localStorage has a newer draft than the server
+  const getInitialContent = useCallback(() => {
+    if (!note) return ''
+    const draftKey = `cinder_draft_${note.id}`
+    try {
+      const draft = localStorage.getItem(draftKey)
+      if (draft) {
+        const { content, savedAt } = JSON.parse(draft)
+        const noteUpdated = new Date(note.updated_at).getTime()
+        if (savedAt > noteUpdated) {
+          toast.warning('Recovered unsaved changes from local backup')
+          return content
+        }
+        localStorage.removeItem(draftKey) // stale draft, clean up
+      }
+    } catch { /* ignore malformed draft */ }
+    return note.body || ''
+  }, [note])
 
   // Early return AFTER all hooks
   if(!note) return <div>Loading note...</div>
@@ -199,8 +234,10 @@ function NotePage({ notes, editTitle, editBody, updateTags, toggleFavorite, upda
 
       <LexicalEditor
         key={note.id}
-        initialContent={note.body || ''}
+        initialContent={getInitialContent()}
         onSave={handleEditorSave}
+        noteId={note.id}
+        onDirtyChange={handleDirtyChange}
         placeholder='Start typing here...'
         interfaceMode={viewMode}
       />

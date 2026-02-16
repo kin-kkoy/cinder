@@ -128,19 +128,32 @@ export const useNotes = (authFetch, API, isAuthed) => {
 
     const editBody = useCallback(async (id, newBody) => {
         // Not optimistic here kay i think it's better because the body is quite big
+        // Retries with exponential backoff to handle Render cold starts
 
-        try {
-            const res = await authFetch(`${API}/notes/${id}`, {
-                method: "PUT",
-                body: JSON.stringify({ body: newBody })
-            })
-            if(!res.ok) throw new Error("Failed to update body/description/contents");
-            const data = await res.json()
-            setNotes(allNotes => allNotes.map( note => note.id === id ? data : note))
+        const MAX_RETRIES = 3;
+        const BACKOFF = [1000, 2000, 4000]; // ms
 
-        } catch (error) {
-            logger.error(error)
+        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+            try {
+                const res = await authFetch(`${API}/notes/${id}`, {
+                    method: "PUT",
+                    body: JSON.stringify({ body: newBody })
+                })
+                if(!res.ok) throw new Error("Failed to update body/description/contents");
+                const data = await res.json()
+                setNotes(allNotes => allNotes.map( note => note.id === id ? data : note))
+                return true
+
+            } catch (error) {
+                logger.error(error)
+                if (attempt < MAX_RETRIES - 1) {
+                    await new Promise(r => setTimeout(r, BACKOFF[attempt]));
+                }
+            }
         }
+
+        toast.error('Failed to save note. Your changes are backed up locally.')
+        return false
     }, [authFetch, API])
 
     const toggleFavorite = useCallback(async (id) => {

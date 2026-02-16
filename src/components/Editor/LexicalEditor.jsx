@@ -19,6 +19,7 @@ import { CodeNode, CodeHighlightNode } from '@lexical/code';
 import ToolbarPlugin from './plugins/ToolbarPlugin';
 import FloatingToolbarPlugin from './plugins/FloatingToolbarPlugin';
 import OnBlurPlugin from './plugins/OnBlurPlugin';
+import AutosavePlugin from './plugins/AutosavePlugin';
 import MarkdownInitPlugin from './plugins/MarkdownInitPlugin';
 import CodeBlockExitPlugin from './plugins/CodeBlockExitPlugin';
 import LinkClickPlugin from './plugins/LinkClickPlugin';
@@ -30,7 +31,7 @@ import { TRANSFORMERS } from './utils/markdownTransformers';
 
 import styles from './LexicalEditor.module.css';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import logger from '../../utils/logger';
 
 function onError(error) {
@@ -47,7 +48,8 @@ function ReadModeListener({isReadMode}){
   return null;
 }
 
-function LexicalEditor({ initialContent, onSave, placeholder = 'Start typing here...', interfaceMode }) {
+function LexicalEditor({ initialContent, onSave, noteId, onDirtyChange, placeholder = 'Start typing here...', interfaceMode }) {
+  const lastSavedContentRef = useRef(initialContent || '');
   const initialConfig = {
     namespace: 'CinderNotesEditor',
     theme: editorTheme,
@@ -97,7 +99,8 @@ function LexicalEditor({ initialContent, onSave, placeholder = 'Start typing her
           {/* Custom plugins */}
           <FloatingToolbarPlugin isReadMode={interfaceMode}/>
           <CodeBlockExitPlugin />
-          <OnBlurPlugin onBlur={onSave} initialContent={initialContent} />
+          <OnBlurPlugin onBlur={onSave} lastSavedContentRef={lastSavedContentRef} />
+          <AutosavePlugin onSave={onSave} noteId={noteId} lastSavedContentRef={lastSavedContentRef} onDirtyChange={onDirtyChange} />
           <LinkClickPlugin isReadMode={interfaceMode} />
           <CodeCopyPlugin />
 
