@@ -86,11 +86,17 @@ function HorizontalNotebookCard({ notebook, deleteNotebook, onOpen, toggleFavori
                 <div
                     className={styles.horizontalCard}
                     style={{
-                        borderLeftColor: spineColor,
                         '--spine-color': spineColor,
                         '--spine-glow': `${spineColor}26`,
                     }}
                 >
+                    {/* Decorative spine with 3 dots */}
+                    <div className={styles.spine}>
+                        {[...Array(3)].map((_, i) => (
+                            <span key={i} className={styles.spineDot} />
+                        ))}
+                    </div>
+
                     <div className={styles.content}>
                         <h4 className={styles.horizontalTitle}>{notebook.name}</h4>
                         {tagsDisplay && <p className={styles.horizontalTags}>{tagsDisplay}</p>}

@@ -86,53 +86,61 @@ function NotebookCard({ notebook, deleteNotebook, onOpen, toggleFavoriteNotebook
                 <div
                     className={styles.card}
                     style={{
-                        borderLeftColor: spineColor,
                         '--spine-color': spineColor,
                         '--spine-glow': `${spineColor}26`,
                     }}
                 >
-                    <div className={styles.header}>
-                        <div className={styles.menuContainer} ref={menuRef}>
-                            <button ref={buttonRef} onClick={toggleMenu} className={styles.menuBtn}>
-                                <FaEllipsisV />
-                            </button>
+                    {/* Decorative spine with 4 dots */}
+                    <div className={styles.cardSpine}>
+                        {[...Array(4)].map((_, i) => (
+                            <span key={i} className={styles.spineDot} />
+                        ))}
+                    </div>
 
-                            {menuOpen && (
-                                <div className={`${styles.menu} ${menuPosition === 'above' ? styles.menuAbove : styles.menuBelow}`}>
-                                    <button onClick={handleFavoriteToggle} className={styles.menuItem}>
-                                        {notebook.is_favorite ? <FaStar color="#fbbf24" /> : <FaRegStar />}
-                                        <span>{notebook.is_favorite ? 'Unfavorite' : 'Favorite'}</span>
-                                    </button>
+                    <div className={styles.cardInner}>
+                        <div className={styles.header}>
+                            <div className={styles.menuContainer} ref={menuRef}>
+                                <button ref={buttonRef} onClick={toggleMenu} className={styles.menuBtn}>
+                                    <FaEllipsisV />
+                                </button>
 
-                                    <div className={styles.colorPicker}>
-                                        <span className={styles.colorLabel}>Spine Color:</span>
-                                        <div className={styles.colorOptions}>
-                                            <button onClick={(e) => handleColorChange(e, '#4a9eff')} className={styles.colorBtn} style={{ backgroundColor: '#4a9eff' }} title="Blue (Default)"></button>
-                                            <button onClick={(e) => handleColorChange(e, '#fbbf24')} className={styles.colorBtn} style={{ backgroundColor: '#fbbf24' }} title="Yellow"></button>
-                                            <button onClick={(e) => handleColorChange(e, '#10b981')} className={styles.colorBtn} style={{ backgroundColor: '#10b981' }} title="Green"></button>
-                                            <button onClick={(e) => handleColorChange(e, '#8b5cf6')} className={styles.colorBtn} style={{ backgroundColor: '#8b5cf6' }} title="Purple"></button>
-                                            <button onClick={(e) => handleColorChange(e, '#ef4444')} className={styles.colorBtn} style={{ backgroundColor: '#ef4444' }} title="Red"></button>
+                                {menuOpen && (
+                                    <div className={`${styles.menu} ${menuPosition === 'above' ? styles.menuAbove : styles.menuBelow}`}>
+                                        <button onClick={handleFavoriteToggle} className={styles.menuItem}>
+                                            {notebook.is_favorite ? <FaStar color="#fbbf24" /> : <FaRegStar />}
+                                            <span>{notebook.is_favorite ? 'Unfavorite' : 'Favorite'}</span>
+                                        </button>
+
+                                        <div className={styles.colorPicker}>
+                                            <span className={styles.colorLabel}>Spine Color:</span>
+                                            <div className={styles.colorOptions}>
+                                                <button onClick={(e) => handleColorChange(e, '#4a9eff')} className={styles.colorBtn} style={{ backgroundColor: '#4a9eff' }} title="Blue (Default)"></button>
+                                                <button onClick={(e) => handleColorChange(e, '#fbbf24')} className={styles.colorBtn} style={{ backgroundColor: '#fbbf24' }} title="Yellow"></button>
+                                                <button onClick={(e) => handleColorChange(e, '#10b981')} className={styles.colorBtn} style={{ backgroundColor: '#10b981' }} title="Green"></button>
+                                                <button onClick={(e) => handleColorChange(e, '#8b5cf6')} className={styles.colorBtn} style={{ backgroundColor: '#8b5cf6' }} title="Purple"></button>
+                                                <button onClick={(e) => handleColorChange(e, '#ef4444')} className={styles.colorBtn} style={{ backgroundColor: '#ef4444' }} title="Red"></button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
-                    </div>
 
-                    <div className={styles.cardBody}>
-                        <h3 className={styles.title}>{notebook.name}</h3>
-                        {tagsDisplay && <p className={styles.tags}>{tagsDisplay}</p>}
-                        <div className={styles.divider} />
-                    </div>
-
-                    <div className={styles.footer}>
-                        <div className={styles.noteCount}>
-                            <LuFileText size={14} />
-                            <span>{noteCount} {noteCount === 1 ? 'Note' : 'Notes'}</span>
+                        <div className={styles.cardBody}>
+                            <h3 className={styles.title}>{notebook.name}</h3>
+                            {tagsDisplay && <p className={styles.tags}>{tagsDisplay}</p>}
+                            <div className={styles.divider} />
                         </div>
-                        <button onClick={handleDelete} className={styles.deleteBtn}>
-                            <HiOutlineTrash />
-                        </button>
+
+                        <div className={styles.footer}>
+                            <div className={styles.noteCount}>
+                                <LuFileText size={14} />
+                                <span>{noteCount} {noteCount === 1 ? 'Note' : 'Notes'}</span>
+                            </div>
+                            <button onClick={handleDelete} className={styles.deleteBtn}>
+                                <HiOutlineTrash />
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
