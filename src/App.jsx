@@ -98,6 +98,18 @@ function App() {
     return refreshPromiseRef.current
   }, [API])
 
+  // Proactive token refresh - refreshes access token every 13 minutes
+  // (before the 15-minute expiry) so the user never hits a 401 during normal use
+  useEffect(() => {
+    if (!isAuthed) return
+
+    const interval = setInterval(() => {
+      refreshAuthToken().catch(() => {})
+    }, 13 * 60 * 1000) // 13 minutes
+
+    return () => clearInterval(interval)
+  }, [isAuthed, refreshAuthToken])
+
   // helper function for AUTHENTICATED FETCH
   const authFetch = useCallback(async (URL, reqProps = {}) => {
     let res = await fetch(URL, {
