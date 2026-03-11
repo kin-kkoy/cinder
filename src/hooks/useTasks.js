@@ -143,7 +143,6 @@ export const useTasks = (authFetch, API, isAuthed) => {
         }
     }, [authFetch, API])
 
-    // const updateTask = useCallback(async (id, title = "defaultValue", description = "defaultValue", isCompleted = "defaultValue", priority = "defaultValue", dueDate = "defaultValue") => {
     const updateTask = useCallback(async (id, {title, description, is_completed, priority, due_date}) => {
         try {
 
@@ -204,6 +203,57 @@ export const useTasks = (authFetch, API, isAuthed) => {
 
 
     // ----------- Daily Task Operations ===========================
+    const addDailyTask = useCallback(async (title, priority) => {
+
+        if (!title?.trim()) {
+            toast.warning("Task title cannot be empty")
+            return
+        }
+
+        try {
+            const res = await authFetch(`${API}/daily-tasks`, {
+                method: 'POST',
+                body: JSON.stringify({ tasks: [{title: title.trim(), priority}] })
+            })
+
+            if(res.ok) {
+                const newTasks = await res.json()
+                setDailyTasks(prev => [...newTasks, ...prev])
+            }
+
+        } catch (error) {
+            logger.error("Error adding daily task:", error)
+            toast.error("Failed to create daily task")
+        }
+
+        return
+    }, [authFetch, API])
+
+    const updateDailyTask = useCallback(async (id, {title, priority, is_completed}) => {
+        try {
+
+            // get the passed values first
+            const params = {title, priority, is_completed};
+
+            //remove undefined fields (the params that weren't passed)
+            const cleanParams = Object.fromEntries(
+                Object.entries(params).filter(([_dirname, v]) => v !== undefined)
+            );
+
+            const res = await authFetch(`${API}/daily-tasks/${id}`, { 
+                method: "PUT",
+                body: JSON.stringify(cleanParams)
+            });
+
+            if(res.ok){
+                setDailyTasks(prev => prev.map(dailyTask => dailyTask.id === id ? {...dailyTask, ...cleanParams} : dailyTask))
+            }
+
+        } catch (error) {
+            logger.error("Error updating daily task:", error)
+        }
+    }, [authFetch, API])
+
     const deleteDailyTask = useCallback(async (id) => {
         try {
             const res = await authFetch(`${API}/daily-tasks/${id}`, { method: "DELETE" })
@@ -250,6 +300,8 @@ export const useTasks = (authFetch, API, isAuthed) => {
         updateTask,
         deleteTask,
         toggleTaskCompletion,
+        addDailyTask,
+        updateDailyTask,
         deleteDailyTask,
         toggleDailyTaskCompletion
     }

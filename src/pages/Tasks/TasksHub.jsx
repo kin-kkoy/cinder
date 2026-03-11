@@ -4,8 +4,9 @@ import AddTaskCard from "../../components/Tasks/AddTaskCard"
 import styles from './TasksHub.module.css'
 import DailyTaskCard from "../../components/Tasks/DailyTaskCard"
 import ConfirmModal from "../../components/Common/ConfirmModal"
-import { HiOutlineTrash, HiOutlineViewGrid, HiOutlineViewList } from 'react-icons/hi'
 import TaskDetailsModal from "../../components/Common/TaskDetailsModal"
+import DailyTaskModal from "../../components/Common/DailyTaskModal"
+import { HiOutlineTrash, HiOutlineViewGrid, HiOutlineViewList } from 'react-icons/hi'
 
 function TasksHub({
   tasks,
@@ -20,6 +21,8 @@ function TasksHub({
   updateTask,
   deleteTask,
   toggleTaskCompletion,
+  addDailyTask,
+  updateDailyTask,
   deleteDailyTask,
   toggleDailyTaskCompletion
 }) {
@@ -32,7 +35,8 @@ function TasksHub({
   const [selectedTasks, setSelectedTasks] = useState([]) // for deleting
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [openTask, setOpenTask] = useState(null)
-  // const [showTaskModal, setShowTaskModal] = useState(false)
+  const [openDailyTask, setOpenDailyTask] = useState(null)
+  const [isDailyCardOpen, setIsDailyCardOpen] = useState(false)
   const tasksSentinelRef = useRef(null)
   const dailyTasksSentinelRef = useRef(null)
   const scrollIntentTimeoutRef = useRef(null)
@@ -125,6 +129,9 @@ function TasksHub({
   }
 
   // Selecting Task Logic
+  const openDailyCardDetails = (task) => {
+    setOpenDailyTask(task);
+  }
   const openCardDetails = (task) => {
     setOpenTask(task);
   }
@@ -195,7 +202,13 @@ function TasksHub({
           <AddTaskCard addTask={addTask} viewMode={viewMode} />
 
           {/* Daily Tasks Section */}
-          <DailyTaskCard tasks={dailyTasks} toggleCompletion={toggleDailyTaskCompletion} deleteTask={deleteDailyTask} />
+          <DailyTaskCard
+            tasks={dailyTasks}
+            toggleCompletion={toggleDailyTaskCompletion}
+            deleteTask={deleteDailyTask}
+            onOpenDetail={openDailyCardDetails}
+            onOpenCard={() => setIsDailyCardOpen(true)}
+          />
 
           {/* Daily tasks infinite scroll sentinel */}
           {hasMoreDailyTasks && (
@@ -233,8 +246,24 @@ function TasksHub({
             </div>
           )}
         </div>
+
+        {/* Open task details Modal for DAILY TASK */}
+        {isDailyCardOpen && <DailyTaskModal 
+          tasks={dailyTasks}
+          toggleCompletion={toggleDailyTaskCompletion}
+          addDailyTask={addDailyTask}
+          deleteTask={deleteDailyTask}
+          onOpenDetail={openDailyCardDetails}
+          onClose={() => setIsDailyCardOpen(false)}
+        />}
+        {openDailyTask && <TaskDetailsModal 
+          onClose={() => setOpenDailyTask(null)}
+          task = {openDailyTask}
+          updateTask={updateDailyTask}
+          isDailyTask={true}
+        />}
         
-        {/* Open Task details Modal */}
+        {/* Open Task details Modal for NORMAL TASK*/}
         {openTask && <TaskDetailsModal 
           onClose={() => setOpenTask(null)}
           task = {openTask}

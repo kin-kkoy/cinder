@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import styles from './TaskDetailsModal.module.css'
 
-function TaskDetailsModal({onClose, task, updateTask}) {
+function TaskDetailsModal({onClose, task, updateTask, isDailyTask}) {
 
     const [titleData, setTitleData] = useState(task.title)
     const [descriptionData, setDescriptionData] = useState(task.description)
@@ -27,9 +27,9 @@ function TaskDetailsModal({onClose, task, updateTask}) {
 
         const changes = {}
         if (titleData !== task.title) changes.title = titleData
-        if (descriptionData !== task.description) changes.description = descriptionData
+        if (!isDailyTask && descriptionData !== task.description) changes.description = descriptionData
         if (prioritySelected !== task.priority) changes.priority = prioritySelected
-        if (dueDate !== task.due_date) changes.due_date = dueDate
+        if (!isDailyTask && dueDate !== task.due_date) changes.due_date = dueDate
         if (completion !== task.is_completed) changes.is_completed = completion
 
         updateTask(task.id, changes)
@@ -87,15 +87,18 @@ function TaskDetailsModal({onClose, task, updateTask}) {
                     </div>
 
                     {/* Description */}
-                    <div className={styles.fieldGroup}>
-                        <span className={styles.fieldLabel}>Description</span>
-                        <textarea
-                            className={styles.descriptionInput}
-                            value={descriptionData || ''}
-                            onChange={e => { setDescriptionData(e.target.value); isDirtyRef.current = true; }}
-                            placeholder="Add a description..."
-                        />
-                    </div>
+                    {!isDailyTask && (
+                        <div className={styles.fieldGroup}>
+                            <span className={styles.fieldLabel}>Description</span>
+                            <textarea
+                                className={styles.descriptionInput}
+                                value={descriptionData || ''}
+                                onChange={e => { setDescriptionData(e.target.value); isDirtyRef.current = true; }}
+                                placeholder="Add a description..."
+                            />
+                        </div>
+                    )}
+                    
 
                     <div className={styles.divider} />
 
@@ -114,12 +117,14 @@ function TaskDetailsModal({onClose, task, updateTask}) {
                             </select>
                         </div>
 
-                        <div className={styles.metaItem}>
-                            <span className={styles.fieldLabel}>Deadline</span>
-                            <span className={`${styles.deadline} ${!dueDate ? styles.noDate : ''}`}>
-                                {formatDate(dueDate) || 'No deadline set'}
-                            </span>
-                        </div>
+                        {!isDailyTask && (
+                            <div className={styles.metaItem}>
+                                <span className={styles.fieldLabel}>Deadline</span>
+                                <span className={`${styles.deadline} ${!dueDate ? styles.noDate : ''}`}>
+                                    {formatDate(dueDate) || 'No deadline set'}
+                                </span>
+                            </div>
+                        )}
                     </div>
 
                 </div>

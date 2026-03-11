@@ -159,7 +159,7 @@ function App() {
 
   // ------------- TASKS DATA LOGIC ===================================
   const {
-    tasks, dailyTasks, tasksPagination, dailyTasksPagination, loadMoreTasks, loadMoreDailyTasks, loadingMore: tasksLoadingMore, loading: tasksLoading, addTask, updateTask, deleteTask, toggleTaskCompletion, deleteDailyTask, toggleDailyTaskCompletion
+    tasks, dailyTasks, tasksPagination, dailyTasksPagination, loadMoreTasks, loadMoreDailyTasks, loadingMore: tasksLoadingMore, loading: tasksLoading, addTask, updateTask, deleteTask, toggleTaskCompletion, addDailyTask, updateDailyTask, deleteDailyTask, toggleDailyTaskCompletion
   } = useTasks(authFetch, API, isAuthed)
 
 
@@ -201,6 +201,8 @@ function App() {
       updateTask={updateTask}
       deleteTask={deleteTask}
       toggleTaskCompletion={toggleTaskCompletion}
+      addDailyTask={addDailyTask}
+      updateDailyTask={updateDailyTask}
       deleteDailyTask={deleteDailyTask}
       toggleDailyTaskCompletion={toggleDailyTaskCompletion}
     />

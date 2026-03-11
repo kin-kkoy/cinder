@@ -4,7 +4,7 @@ import { HiOutlineTrash } from 'react-icons/hi'
 import styles from './DailyTaskCard.module.css'
 import ConfirmModal from '../Common/ConfirmModal'
 
-function DailyTaskCard({ tasks, toggleCompletion, deleteTask }) {
+function DailyTaskCard({ tasks, toggleCompletion, deleteTask, onOpenDetail, onOpenCard }) {
     const [deleteModalOpen, setDeleteModalOpen] = useState(false)
     const [taskToDelete, setTaskToDelete] = useState(null)
 
@@ -61,8 +61,8 @@ function DailyTaskCard({ tasks, toggleCompletion, deleteTask }) {
 
     return (
         <div className={styles.card}>
-            {/* Header */}
-            <div className={styles.header}>
+            {/* Header of Daily Task Card*/}
+            <div className={styles.header} onClick={onOpenCard}>
                 <div className={styles.headerLeft}>
                     <h3 className={styles.title}>Today's Tasks</h3>
                 </div>
@@ -72,11 +72,14 @@ function DailyTaskCard({ tasks, toggleCompletion, deleteTask }) {
             {/* Task List */}
             <ul className={styles.taskList}>
                 {sortedTasks.map(task => (
-                    <li key={task.id} className={`${styles.taskItem} ${task.is_completed ? styles.completed : ''}`}>
+                    <li key={task.id} className={`${styles.taskItem} ${task.is_completed ? styles.completed : ''}`} onClick={() => onOpenDetail(task)}>
                         {/* Checkbox */}
                         <button
                             className={`${styles.checkbox} ${task.is_completed ? styles.checked : ''}`}
-                            onClick={() => toggleCompletion(task.id, !task.is_completed)}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                toggleCompletion(task.id, !task.is_completed)
+                            }}
                         >
                             {task.is_completed && <FaCheck size={12} />}
                         </button>
@@ -92,7 +95,10 @@ function DailyTaskCard({ tasks, toggleCompletion, deleteTask }) {
                         {/* Delete Button */}
                         <button
                             className={styles.deleteBtn}
-                            onClick={() => handleDeleteClick(task)}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteClick(task)
+                            }}
                         >
                             <HiOutlineTrash size={14} />
                         </button>
@@ -101,7 +107,7 @@ function DailyTaskCard({ tasks, toggleCompletion, deleteTask }) {
             </ul>
 
             {/* Footer - Progress */}
-            <div className={styles.footer}>
+            <div className={styles.footer} onClick={onOpenCard}>
                 <div className={styles.progressBar}>
                     <div
                         className={styles.progressFill}
