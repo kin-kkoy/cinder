@@ -31,6 +31,8 @@ function TasksHub({
   const [viewMode, setViewMode] = useState(() => {
     return localStorage.getItem('tasksViewMode') || 'card'
   })
+  const [sortBy, setSortBy] = useState('priority')
+  const [sortDir, setSortDir] = useState('asc') // sorting direction (ascending/descending)
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedTasks, setSelectedTasks] = useState([]) // for deleting
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -51,8 +53,26 @@ function TasksHub({
     if (a.is_completed !== b.is_completed) {
       return a.is_completed ? 1 : -1
     }
-    // Then sort by priority within each group
-    return (priorityOrder[a.priority] || 1) - (priorityOrder[b.priority] || 1)
+
+    // Sort by priority within each group
+    if(sortBy === 'priority') return (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1)
+
+    // Or sort by due date
+    if(sortBy === 'dueDate'){
+
+      // check if both have date or are null
+      if(!a.due_date && !b.due_date) return 0
+      if(!a.due_date) return 1
+      if(!b.due_date) return -1
+
+      //if both have dates then compare and sort
+      if(sortDir === 'dsc'){
+        return new Date(a.due_date) - new Date(b.due_date)
+      }else{
+        return new Date(b.due_date) - new Date(a.due_date)
+      }
+    }
+
   })
 
   // Intersection Observer for tasks infinite scroll
@@ -171,6 +191,22 @@ function TasksHub({
             {isSelectionMode && ` (${selectedTasks.length} selected)`}
           </p>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            {/* Sroting options */}
+            <select
+              value={sortBy}
+              onChange={ e => setSortBy(e.target.value)}
+              className={styles.sortSelect}
+            >
+              <option value="priority">Priority</option>
+              <option value="dueDate">Deadline</option>
+            </select>
+            {sortBy === 'dueDate' && (
+              <select value={sortDir} onChange={ e => setSortDir(e.target.value)} className={styles.sortSelect}>
+                <option value="asc">Earliest</option>
+                <option value="dsc">Furthest</option>
+              </select>
+            )}
+
             {/* Delete button - always visible */}
             <button
               onClick={isSelectionMode ? handleBatchDelete : toggleSelectionMode}
