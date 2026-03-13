@@ -15,6 +15,12 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 12px;
+    animation: topIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes topIn {
+    from { transform: translateY(-10px); opacity: 0; }
+    to   { transform: translateY(0);     opacity: 1; }
 }
 
 .header h1 {
@@ -53,6 +59,8 @@
     gap: 12px;
     position: relative;
     z-index: 1;
+    animation: fadeUp 0.4s ease both;
+    animation-delay: 0.1s;
 }
 
 .gridView {
@@ -60,6 +68,13 @@
     column-gap: 16px;
     position: relative;
     z-index: 1;
+    animation: fadeUp 0.4s ease both;
+    animation-delay: 0.1s;
+}
+
+@keyframes fadeUp {
+    from { transform: translateY(12px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
 }
 
 .gridView > * {
